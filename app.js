@@ -7,6 +7,7 @@ const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
 const wrapAsync = require("./utils/wrapAsync.js");
 const ExpressError = require("./utils/ExpressError.js");
+const listingSchema = require("./schema.js");
 
 app.engine("ejs", ejsMate);
 
@@ -30,6 +31,19 @@ app.get("/", (req, res) =>{
     res.send("Home Page");
 });
 
+const validateListing = (req,res,next)=>{
+    if (!req.body || Object.keys(req.body).length === 0){
+        throw new ExpressError(400, "Send valid data for listing");
+    }
+
+    let {error} = listingSchema.validate(req.body);
+    if(error){
+        throw new ExpressError(400,error);
+    }else{
+        next();
+    }
+}
+
 //All Route
 app.get("/listings", wrapAsync(async(req, res) =>{
     let listings = await Listing.find();
@@ -49,31 +63,12 @@ app.get("/listings/:id", wrapAsync(async(req, res) =>{
 }));
 
 //Create Route
-app.post("/listings", wrapAsync(async (req, res, next) =>{
-    if (!req.body || Object.keys(req.body).length === 0){
-        next(new ExpressError(400, "Send valid data for listing"));
-    }
-    if(!req.body.title){
-        next(new ExpressError(400, "Title missing"));
-    }
-    if(!req.body.description){
-        next(new ExpressError(400, "Description missing"));
-    }
-    if(!req.body.price){
-        next(new ExpressError(400, "Price missing"));
-    }
-    if(!req.body.location){
-        next(new ExpressError(400, "Location missing"));
-    }
-    if(!req.body.country){
-        next(new ExpressError(400, "Country missing"));
-    }
-
+app.post("/listings", validateListing,wrapAsync(async (req, res, next) =>{
     let {title, description, image, price, location, country} = req.body;
     await Listing.insertOne({
         title,
         description,
-        image: {url: image},
+        image,
         price,
         location,
         country
@@ -89,34 +84,13 @@ app.get("/listings/:id/edit", wrapAsync(async (req, res) =>{
 }));
 
 //Update Route
-app.put("/listings/:id", wrapAsync(async (req, res, next) =>{
+app.put("/listings/:id", validateListing, wrapAsync(async (req, res, next) =>{
     let {id} = req.params;
-    if (!req.body || Object.keys(req.body).length === 0){
-        next(new ExpressError(400, "Send valid data for listing"));
-    }
-    if(!req.body.title){
-        next(new ExpressError(400, "Title missing"));
-    }
-    if(!req.body.description){
-        next(new ExpressError(400, "Description missing"));
-    }
-    if(!req.body.price){
-        next(new ExpressError(400, "Price missing"));
-    }
-    // if(!req.body.image.url){
-    //     next(new ExpressError(400, "Image URL missing"));
-    // }
-    if(!req.body.location){
-        next(new ExpressError(400, "Location missing"));
-    }
-    if(!req.body.country){
-        next(new ExpressError(400, "Country missing"));
-    }
     let {title, description, image, price, location, country} = req.body;
     await Listing.findByIdAndUpdate(id,{
         title,
         description,
-        image: {url: image},
+        image,
         price,
         location,
         country
@@ -133,14 +107,14 @@ app.delete("/listings/:id", wrapAsync(async (req, res) =>{
 
 //Custom error throw
 app.use((req, res, next) =>{
-    throw new ExpressError(404,"Page not Found");
+    next(new ExpressError(404,"Page not Found"));
 });
 
-//Middleware
+//Error handling Middleware
 app.use((err, req, res, next) =>{
     let {statusCode=500, message="Something went wrong"} = err;
     res.status(statusCode).render("error.ejs", {message});
-})
+});
 
 //Server is listening
 app.listen(8080, (req, res) =>{
