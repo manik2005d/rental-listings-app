@@ -11,8 +11,14 @@ const listingSchema = Joi.object({
         .required(),
     price: Joi.number()
         .required().min(0),
-    image: Joi.string()
+    image: Joi.string().allow(""),
+});
+
+const reviewSchema = Joi.object({
+    rating: Joi.number()
+        .required().min(1).max(5),
+    comment: Joi.string()
         .required(),
 });
 
-module.exports = listingSchema;
+module.exports = {listingSchema, reviewSchema};
