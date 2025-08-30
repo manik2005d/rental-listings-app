@@ -1,18 +1,15 @@
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
-const Listing = require("./models/listing.js");
 const path = require("path");
 const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
-const wrapAsync = require("./utils/wrapAsync.js");
 const ExpressError = require("./utils/ExpressError.js");
-const {listingSchema} = require("./schema.js");
-const Review = require("./models/review.js");
-const {reviewSchema} = require("./schema.js");
+
+const listings = require("./routes/listing.js");
+const reviews = require("./routes/review.js")
 
 app.engine("ejs", ejsMate);
-
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -33,116 +30,8 @@ app.get("/", (req, res) =>{
     res.send("Home Page");
 });
 
-const validateListing = (req,res,next)=>{
-    if (!req.body || Object.keys(req.body).length === 0){
-        throw new ExpressError(400, "Send valid data for listing");
-    }
-
-    let {error} = listingSchema.validate(req.body);
-    if(error){
-        throw new ExpressError(400,error);
-    }else{
-        next();
-    }
-}
-
-const validateReview = (req,res,next)=>{
-    if (!req.body || Object.keys(req.body).length === 0){
-        throw new ExpressError(400, "Send valid data for review");
-    }
-
-    let {error} = reviewSchema.validate(req.body);
-    if(error){
-        throw new ExpressError(400,error);
-    }else{
-        next();
-    }
-}
-
-//All Route
-app.get("/listings", wrapAsync(async(req, res) =>{
-    let listings = await Listing.find();
-    res.render("listings/index.ejs",{listings});
-}));
-
-//New listing Route
-app.get("/listings/new", (req, res) =>{
-    res.render("listings/new.ejs");
-});
-
-//Read Route
-app.get("/listings/:id", wrapAsync(async(req, res) =>{
-    let {id} = req.params;
-    let listing = await Listing.findById(id).populate("reviews");
-    res.render("listings/show.ejs",{listing});
-}));
-
-//Create Route
-app.post("/listings", validateListing, wrapAsync(async (req, res, next) =>{
-    let {title, description, image, price, location, country} = req.body;
-    await Listing.insertOne({
-        title,
-        description,
-        image,
-        price,
-        location,
-        country
-    });
-    res.redirect("/listings");
-}));
-
-//Edit Route
-app.get("/listings/:id/edit", wrapAsync(async (req, res) =>{
-    let {id} = req.params;
-    let listing = await Listing.findById(id);
-    res.render("listings/edit.ejs",{listing});
-}));
-
-//Update Route
-app.put("/listings/:id", validateListing, wrapAsync(async (req, res, next) =>{
-    let {id} = req.params;
-    let {title, description, image, price, location, country} = req.body;
-    await Listing.findByIdAndUpdate(id,{
-        title,
-        description,
-        image,
-        price,
-        location,
-        country
-    });
-    res.redirect(`/listings/${id}`);
-}));
-
-//Delete Route
-app.delete("/listings/:id", wrapAsync(async (req, res) =>{
-    let {id} = req.params;
-    let listing = await Listing.findById(id);
-    await Review.deleteMany({_id: {$in: listing.reviews}});
-    await Listing.findByIdAndDelete(id);
-    res.redirect("/listings");
-}));
-
-//Post Review Route
-app.post("/listings/:id/reviews", validateReview, wrapAsync(async (req,res) =>{
-    let {id} = req.params;
-    let {comment, rating} = req.body;
-    let listing = await Listing.findById(id);
-    let newReview = new Review({
-        comment,
-        rating,
-    });
-    listing.reviews.push(newReview);
-    await newReview.save();
-    await listing.save();
-    res.redirect(`/listings/${listing._id}`);
-}));
-
-//Delete Review Route
-app.delete("/listings/:lid/reviews/:rid", wrapAsync(async (req,res) =>{
-    await Review.findByIdAndDelete(req.params.rid);
-    await Listing.findByIdAndUpdate(req.params.lid,{ $pull: {reviews: req.params.rid} });
-    res.redirect(`/listings/${req.params.lid}`);
-}));
+app.use("/listings", listings);
+app.use("/listings/:id/reviews", reviews);
 
 //Custom error throw
 app.use((req, res, next) =>{
