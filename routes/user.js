@@ -38,11 +38,12 @@ router.post("/login", redirectUser,
     }) ,
     async (req,res) =>{
     req.flash("success", "Welcome to WanderHub!");
-    if(res.locals.redirectUrl){
-        res.redirect(res.locals.redirectUrl);
-    }else{
-        res.redirect("/listings");
-    }
+    // if(res.locals.redirectUrl){
+    //     res.redirect(res.locals.redirectUrl);
+    // }else{
+    //     res.redirect("/listings");
+    // }
+    res.redirect("/listings");
 });
 
 router.get("/logout", (req,res) =>{
