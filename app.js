@@ -10,6 +10,7 @@ const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
 const ExpressError = require("./utils/ExpressError.js");
 const session = require("express-session");
+const MongoStore = require("connect-mongo");
 const flash = require("connect-flash");
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
@@ -20,7 +21,8 @@ const reviewRouter = require("./routes/review.js");
 const userRouter = require("./routes/user.js");
 
 async function main(){
-    await mongoose.connect("mongodb://127.0.0.1:27017/airbnb");
+    await mongoose.connect(process.env.ATLAS_DB_URL);
+
 }
 
 main()
@@ -34,7 +36,18 @@ app.use(express.static(path.join(__dirname,"/public")));
 app.use(express.urlencoded({extended: true}));
 app.use(methodOverride("_method"));
 
+const store = MongoStore.create({
+    mongoUrl: process.env.ATLAS_DB_URL,
+    crypto: {
+        secret: "mysecretcode",
+    },
+    touchAfter: 24 * 3600,
+});
+store.on("error", () =>{
+    console.log("Error in Mongo Session Store", err);
+});
 const sessionOptions = {
+    store: store,
     secret: "mysecretcode",
     resave: false,
     saveUninitialized: true,
